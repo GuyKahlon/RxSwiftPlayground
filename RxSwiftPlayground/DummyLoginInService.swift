@@ -7,7 +7,7 @@
 //
 
 import Foundation
-
+import RxSwift
 
 typealias DummyResponse = Bool
 typealias DummyCompletionBlock = (DummyResponse) -> Void
@@ -21,5 +21,19 @@ class DummyLoginInService{
             let success = email == "email@test.com" && password == "1234"
             completion(success);
         }
+    }
+    
+    class func login(email: String, password: String) -> Observable<DummyResponse>{
+        
+        return create { observer in
+            
+            self.login(email, password: password, completion: { (success: DummyResponse) -> Void in
+                sendNext(observer, success)
+                sendCompleted(observer)
+            })
+
+            return AnonymousDisposable {}
+        }
+        
     }
 }

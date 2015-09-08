@@ -7,6 +7,8 @@
 //
 
 import UIKit
+import RxSwift
+import RxCocoa
 
 class LoginViewController: UIViewController {
     
@@ -16,6 +18,74 @@ class LoginViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        let validUsernameObservable: Observable<Bool> = usernameTextFiled.rx_text
+            .map({ (username: String) -> Bool in
+                return username.isValidEmail()
+            })
+        
+        validUsernameObservable
+            .map { valid in valid ? UIColor.greenColor().CGColor : UIColor.redColor().CGColor }
+            .subscribeNext ({ (textFieldBorderColor) -> Void in
+           self.usernameTextFiled.layer.borderColor = textFieldBorderColor
+        })
+     
+    
+        let validPasswordObservable = passwordTextFiled.rx_text.map {$0.characters.count > 3 }
+        
+        validPasswordObservable
+            .map { $0 ? UIColor.greenColor().CGColor : UIColor.redColor().CGColor }
+            .subscribeNext ({ (textFieldBorderColor) -> Void in
+                self.passwordTextFiled.layer.borderColor = textFieldBorderColor
+            })
+        
+        
+        let validFormObservable = combineLatest(validUsernameObservable, validPasswordObservable) { (isValidEmail: Bool, isValidPassword: Bool) -> Bool in
+            return isValidEmail && isValidPassword
+        }
+        
+        validFormObservable.subscribeNext { (validForm) -> Void in
+            self.logInButton.enabled = validForm
+        }
+        
+//        logInButton.rx_tap.subscribeNext { _ in            
+//           
+//            DummyLoginInService.login(usernameTextFiled.text!, password: passwordTextFiled.text!)
+//                .subscribeNext({ (response) -> Void in
+//                    if response{
+//                        self.performSegueWithIdentifier("loginSuccess", sender: self)
+//                    }
+//                })
+//        }
+        
+        
+        logInButton.rx_tap
+            .doOn({ _ in
+                self.logInButton.enabled = false
+            })
+            .flatMap { DummyLoginInService.login(self.usernameTextFiled.text!, password: self.passwordTextFiled.text!) }
+            .subscribeNext({ (response) -> Void in
+                self.logInButton.enabled = true
+                if response{
+                    self.performSegueWithIdentifier("loginSuccess", sender: self)
+                }
+            })
+        
+        
+//            .subscribeNext(response){
+//                if response{
+//                    self.performSegueWithIdentifier("loginSuccess", sender: self)
+//                }
+//            }
+        
+        
+        //}
+        
+        
+    }
+    
+    func loginObservable(){
+        DummyLoginInService.login(usernameTextFiled.text!, password: passwordTextFiled.text!)
     }
 }
 
