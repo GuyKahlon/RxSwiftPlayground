@@ -24,16 +24,15 @@ class DummyLoginInService{
     }
     
     class func login(email: String, password: String) -> Observable<DummyResponse>{
-        
         return create { observer in
-            
             self.login(email, password: password, completion: { (success: DummyResponse) -> Void in
-                sendNext(observer, success)
-                sendCompleted(observer)
+                observer.on(.Next(success))
+                observer.on(.Completed)
             })
-
+            
             return AnonymousDisposable {}
         }
-        
     }
+
+
 }
