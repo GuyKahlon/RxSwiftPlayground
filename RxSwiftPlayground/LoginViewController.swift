@@ -44,20 +44,7 @@ class LoginViewController: UIViewController {
             return isValidEmail && isValidPassword
         }
         
-        validFormObservable.subscribeNext { (validForm) -> Void in
-            self.logInButton.enabled = validForm
-        }
-        
-//        logInButton.rx_tap.subscribeNext { _ in            
-//           
-//            DummyLoginInService.login(usernameTextFiled.text!, password: passwordTextFiled.text!)
-//                .subscribeNext({ (response) -> Void in
-//                    if response{
-//                        self.performSegueWithIdentifier("loginSuccess", sender: self)
-//                    }
-//                })
-//        }
-        
+        validFormObservable.bindTo(self.logInButton.rx_enabled)
         
         logInButton.rx_tap
             .doOn({ _ in
@@ -70,18 +57,7 @@ class LoginViewController: UIViewController {
                     self.performSegueWithIdentifier("loginSuccess", sender: self)
                 }
             })
-        
-        
-//            .subscribeNext(response){
-//                if response{
-//                    self.performSegueWithIdentifier("loginSuccess", sender: self)
-//                }
-//            }
-        
-        
-        //}
-        
-        
+ 
     }
     
     func loginObservable(){
