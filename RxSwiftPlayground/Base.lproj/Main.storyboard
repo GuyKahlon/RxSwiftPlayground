@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="8187.4" systemVersion="15A279b" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="T8s-TV-4eJ">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="8191" systemVersion="15A279b" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="T8s-TV-4eJ">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="8151.3"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="8154"/>
         <capability name="Alignment constraints with different attributes" minToolsVersion="5.1"/>
         <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
     </dependencies>
     <scenes>
-        <!--Login-->
+        <!--Rx Login-->
         <scene sceneID="tne-QT-ifu">
             <objects>
                 <viewController id="BYZ-38-t0r" customClass="LoginViewController" customModule="RxSwiftPlayground" customModuleProvider="target" sceneMemberID="viewController">
@@ -33,7 +33,7 @@
                                 <rect key="frame" x="-25" y="-30" width="97" height="30"/>
                                 <animations/>
                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
-                                <textInputTraits key="textInputTraits"/>
+                                <textInputTraits key="textInputTraits" secureTextEntry="YES"/>
                                 <userDefinedRuntimeAttributes>
                                     <userDefinedRuntimeAttribute type="number" keyPath="layer.borderWidth">
                                         <integer key="value" value="1"/>
@@ -95,7 +95,7 @@
                             </mask>
                         </variation>
                     </view>
-                    <navigationItem key="navigationItem" title="Login" id="KkX-8E-cns"/>
+                    <navigationItem key="navigationItem" title="Rx Login" id="KkX-8E-cns"/>
                     <connections>
                         <outlet property="logInButton" destination="JyV-dJ-0IC" id="oph-XE-7oh"/>
                         <outlet property="passwordTextFiled" destination="RfZ-tD-vxX" id="StM-zE-Bab"/>
@@ -118,13 +118,25 @@
                     <view key="view" contentMode="scaleToFill" id="RvU-AU-1UB">
                         <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="center" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Rx" translatesAutoresizingMaskIntoConstraints="NO" id="F7B-lH-Fa4">
+                                <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                                <animations/>
+                            </imageView>
+                        </subviews>
                         <animations/>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstItem="F7B-lH-Fa4" firstAttribute="centerY" secondItem="RvU-AU-1UB" secondAttribute="centerY" id="1gL-TD-PzB"/>
+                            <constraint firstItem="F7B-lH-Fa4" firstAttribute="height" secondItem="RvU-AU-1UB" secondAttribute="height" id="3hh-Bm-2lP"/>
+                            <constraint firstItem="F7B-lH-Fa4" firstAttribute="width" secondItem="RvU-AU-1UB" secondAttribute="width" id="MOO-uy-vjO"/>
+                            <constraint firstItem="F7B-lH-Fa4" firstAttribute="centerX" secondItem="RvU-AU-1UB" secondAttribute="centerX" id="ay4-ok-aaq"/>
+                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dcQ-ob-7Qx" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="1915.5" y="433.5"/>
+            <point key="canvasLocation" x="1915" y="433"/>
         </scene>
         <!--Navigation Controller-->
         <scene sceneID="zBA-m7-CkP">
@@ -135,7 +147,11 @@
                         <rect key="frame" x="0.0" y="0.0" width="320" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <animations/>
+                        <color key="tintColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                         <color key="barTintColor" red="0.16078431369999999" green="0.4039215686" blue="0.43921568630000002" alpha="1" colorSpace="calibratedRGB"/>
+                        <textAttributes key="titleTextAttributes">
+                            <color key="textColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                        </textAttributes>
                     </navigationBar>
                     <nil name="viewControllers"/>
                     <connections>
@@ -147,4 +163,7 @@
             <point key="canvasLocation" x="304.5" y="433.5"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="Rx" width="120" height="120"/>
+    </resources>
 </document>

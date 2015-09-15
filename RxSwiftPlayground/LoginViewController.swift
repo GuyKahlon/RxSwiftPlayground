@@ -55,6 +55,10 @@ class LoginViewController: UIViewController {
                 self.logInButton.enabled = true
                 if response{
                     self.performSegueWithIdentifier("loginSuccess", sender: self)
+                } else {
+                    let alertController = UIAlertController(title: "RxSwiftPlayground", message: "Wrong username or password, Please try again", preferredStyle: .Alert)
+                    alertController.addAction(UIAlertAction(title: "Cancel", style: .Cancel, handler: nil))
+                    self.presentViewController(alertController, animated: true, completion: nil)
                 }
             })
  
