@@ -318,7 +318,6 @@ Hopefully this this tutorial has given you a good introduction to Functional Rea
 The main goal of Rx is to make your code cleaner and easier to understand, If you want to learn more about RxSwift, your first stop should be the [RxSwift README and the documentation on GitHub] (https://github.com/ReactiveX/RxSwift).
 
 Good luck
-Guy
 
 
 
