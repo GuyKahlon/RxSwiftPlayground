@@ -321,7 +321,7 @@ Build and run the application in order to confirm the login button is enabled an
 **Conclusions**
 
 Hopefully this this tutorial has given you a good introduction to Functional Reactive Programing and basic knowledge of how to start with RxSwift\RxCocoa, and that will help you to integrate this framework into your own application.
-The main goal of Rx is to make your code cleaner and easier to understand. If you'd like to learn more about RxSwift, your first step should be the [RxSwift README and the documentation on GitHub] (https://github.com/ReactiveX/RxSwift).
+If you'd like to learn more about RxSwift, your first step should be the [RxSwift README and the documentation on GitHub] (https://github.com/ReactiveX/RxSwift).
 
 Thanks and Good Luck
 
