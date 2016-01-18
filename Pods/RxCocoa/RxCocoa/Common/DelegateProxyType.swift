@@ -3,7 +3,7 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 6/15/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -108,7 +108,7 @@ public protocol DelegateProxyType : AnyObject {
     /**
     Returns designated delegate property for object.
     
-    Objects can have mutltiple delegate properties.
+    Objects can have multiple delegate properties.
     
     Each delegate property needs to have it's own type implementing `DelegateProxyType`.
     
@@ -120,7 +120,7 @@ public protocol DelegateProxyType : AnyObject {
     /**
     Sets designated delegate property for object.
     
-    Objects can have mutltiple delegate properties.
+    Objects can have multiple delegate properties.
     
     Each delegate property needs to have it's own type implementing `DelegateProxyType`.
     
@@ -157,16 +157,16 @@ Returns existing proxy for object or installs new instance of delegate proxy.
     extension UISearchBar {
 
         public var rx_delegate: DelegateProxy {
-            return proxyForObject(self) as RxSearchBarDelegateProxy
+            return proxyForObject(RxSearchBarDelegateProxy.self, self)
         }
         
-        public var rx_searchText: ControlProperty<String> {
+        public var rx_text: ControlProperty<String> {
             let source: Observable<String> = self.rx_delegate.observe("searchBar:textDidChange:")
             ...
         }
     }
 */
-public func proxyForObject<P: DelegateProxyType>(object: AnyObject) -> P {
+public func proxyForObject<P: DelegateProxyType>(type: P.Type, _ object: AnyObject) -> P {
     MainScheduler.ensureExecutingOnScheduler()
     
     let maybeProxy = P.assignedProxyFor(object) as? P
@@ -221,28 +221,31 @@ func installDelegate<P: DelegateProxyType>(proxy: P, delegate: AnyObject, retain
 extension ObservableType {
     func subscribeProxyDataSourceForObject<P: DelegateProxyType>(object: AnyObject, dataSource: AnyObject, retainDataSource: Bool, binding: (P, Event<E>) -> Void)
         -> Disposable {
-        let proxy: P = proxyForObject(object)
+        let proxy = proxyForObject(P.self, object)
         let disposable = installDelegate(proxy, delegate: dataSource, retainDelegate: retainDataSource, onProxyForObject: object)
         
-        // we should never let the subscriber to complete because it should retain data source
-        let source = sequenceOf(self.asObservable(), never()) as Observable<Observable<E>>
-        let subscription = source.concat().subscribe { (event: Event<E>) in
-            MainScheduler.ensureExecutingOnScheduler()
-            
-            assert(proxy === P.currentDelegateFor(object), "Proxy changed from the time it was first set.\nOriginal: \(proxy)\nExisting: \(P.currentDelegateFor(object))")
-            
-            binding(proxy, event)
-            
-            switch event {
-            case .Error(let error):
-                bindingErrorToInterface(error)
-                disposable.dispose()
-            case .Completed:
-                disposable.dispose()
-            default:
-                break
+        let subscription = self.asObservable()
+            // source can't ever end, otherwise it will release the subscriber
+            .concat(Observable.never())
+            .subscribe { [weak object] (event: Event<E>) in
+                MainScheduler.ensureExecutingOnScheduler()
+
+                if let object = object {
+                    assert(proxy === P.currentDelegateFor(object), "Proxy changed from the time it was first set.\nOriginal: \(proxy)\nExisting: \(P.currentDelegateFor(object))")
+                }
+                
+                binding(proxy, event)
+                
+                switch event {
+                case .Error(let error):
+                    bindingErrorToInterface(error)
+                    disposable.dispose()
+                case .Completed:
+                    disposable.dispose()
+                default:
+                    break
+                }
             }
-        }
             
         return StableCompositeDisposable.create(subscription, disposable)
     }

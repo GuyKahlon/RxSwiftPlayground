@@ -3,7 +3,7 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 3/12/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -12,11 +12,11 @@ import Foundation
 Represents a disposable resource whose underlying disposable resource can be replaced by another disposable resource, causing automatic disposal of the previous underlying disposable resource.
 */
 public class SerialDisposable : DisposeBase, Cancelable {
-    var lock = SpinLock()
+    private var _lock = SpinLock()
     
     // state
-    var _current = nil as Disposable?
-    var _disposed = false
+    private var _current = nil as Disposable?
+    private var _disposed = false
     
     /**
     - returns: Was resource disposed.
@@ -43,12 +43,12 @@ public class SerialDisposable : DisposeBase, Cancelable {
     */
     public var disposable: Disposable {
         get {
-            return self.lock.calculateLocked {
+            return _lock.calculateLocked {
                 return self.disposable
             }
         }
         set (newDisposable) {
-            let disposable: Disposable? = self.lock.calculateLocked {
+            let disposable: Disposable? = _lock.calculateLocked {
                 if _disposed {
                     return newDisposable
                 }
@@ -69,18 +69,19 @@ public class SerialDisposable : DisposeBase, Cancelable {
     Disposes the underlying disposable as well as all future replacements.
     */
     public func dispose() {
-        let disposable: Disposable? = self.lock.calculateLocked {
-            if _disposed {
-                return nil
-            }
-            else {
-                _disposed = true
-                return _current
-            }
+        _dispose()?.dispose()
+    }
+
+    private func _dispose() -> Disposable? {
+        _lock.lock(); defer { _lock.unlock() }
+        if _disposed {
+            return nil
         }
-        
-        if let disposable = disposable {
-            disposable.dispose()
+        else {
+            _disposed = true
+            let current = _current
+            _current = nil
+            return current
         }
     }
 }

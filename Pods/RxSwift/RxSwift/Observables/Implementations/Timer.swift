@@ -3,72 +3,70 @@
 //  RxSwift
 //
 //  Created by Krunoslav Zaher on 6/7/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
 
-class TimerSink<S: Scheduler, O: ObserverType where O.E == Int64> : Sink<O> {
-    typealias Parent = Timer<S>
+class TimerSink<O: ObserverType where O.E : SignedIntegerType > : Sink<O> {
+    typealias Parent = Timer<O.E>
     
-    let parent: Parent
+    private let _parent: Parent
     
-    init(parent: Parent, observer: O, cancel: Disposable) {
-        self.parent = parent
-        super.init(observer: observer, cancel: cancel)
+    init(parent: Parent, observer: O) {
+        _parent = parent
+        super.init(observer: observer)
     }
     
     func run() -> Disposable {
-        return self.parent.scheduler.schedulePeriodic(0 as Int64, startAfter: self.parent.dueTime, period: self.parent.period!) { state in
-            self.observer?.on(.Next(state))
+        return _parent._scheduler.schedulePeriodic(0 as O.E, startAfter: _parent._dueTime, period: _parent._period!) { state in
+            self.forwardOn(.Next(state))
             return state &+ 1
         }
     }
 }
 
-class TimerOneOffSink<S: Scheduler, O: ObserverType where O.E == Int64> : Sink<O> {
-    typealias Parent = Timer<S>
+class TimerOneOffSink<O: ObserverType where O.E : SignedIntegerType> : Sink<O> {
+    typealias Parent = Timer<O.E>
     
-    let parent: Parent
+    private let _parent: Parent
     
-    init(parent: Parent, observer: O, cancel: Disposable) {
-        self.parent = parent
-        super.init(observer: observer, cancel: cancel)
+    init(parent: Parent, observer: O) {
+        _parent = parent
+        super.init(observer: observer)
     }
     
     func run() -> Disposable {
-        return self.parent.scheduler.scheduleRelative((), dueTime: self.parent.dueTime) { (_) -> Disposable in
-            self.observer?.on(.Next(0))
-            self.observer?.on(.Completed)
+        return _parent._scheduler.scheduleRelative((), dueTime: _parent._dueTime) { (_) -> Disposable in
+            self.forwardOn(.Next(0))
+            self.forwardOn(.Completed)
             
             return NopDisposable.instance
         }
     }
 }
 
-class Timer<S: Scheduler>: Producer<Int64> {
-    typealias TimeInterval = S.TimeInterval
+class Timer<E: SignedIntegerType>: Producer<E> {
+    private let _scheduler: SchedulerType
+    private let _dueTime: RxTimeInterval
+    private let _period: RxTimeInterval?
     
-    let scheduler: S
-    let dueTime: TimeInterval
-    let period: TimeInterval?
-    
-    init(dueTime: TimeInterval, period: TimeInterval?, scheduler: S) {
-        self.scheduler = scheduler
-        self.dueTime = dueTime
-        self.period = period
+    init(dueTime: RxTimeInterval, period: RxTimeInterval?, scheduler: SchedulerType) {
+        _scheduler = scheduler
+        _dueTime = dueTime
+        _period = period
     }
     
-    override func run<O : ObserverType where O.E == Int64>(observer: O, cancel: Disposable, setSink: (Disposable) -> Void) -> Disposable {
-        if let _ = period {
-            let sink = TimerSink(parent: self, observer: observer, cancel: cancel)
-            setSink(sink)
-            return sink.run()
+    override func run<O : ObserverType where O.E == E>(observer: O) -> Disposable {
+        if let _ = _period {
+            let sink = TimerSink(parent: self, observer: observer)
+            sink.disposable = sink.run()
+            return sink
         }
         else {
-            let sink = TimerOneOffSink(parent: self, observer: observer, cancel: cancel)
-            setSink(sink)
-            return sink.run()
+            let sink = TimerOneOffSink(parent: self, observer: observer)
+            sink.disposable = sink.run()
+            return sink
         }
     }
 }

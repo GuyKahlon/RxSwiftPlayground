@@ -3,7 +3,7 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 3/28/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -11,16 +11,16 @@ import Foundation
 /**
 Variable is a wrapper for `BehaviorSubject`.
 
-Unlike `BehaviorSubject` it can't terminate with error.
-
-Before variable is deallocated, `Completed` event will be sent to all observers.
+Unlike `BehaviorSubject` it can't terminate with error, and when variable is deallocated
+ it will complete it's observable sequence (`asObservable`).
 */
-public class Variable<Element> : ObservableType {
+public class Variable<Element> {
+
     public typealias E = Element
     
-    let subject: BehaviorSubject<Element>
+    private let _subject: BehaviorSubject<Element>
     
-    private var lock = SpinLock()
+    private var _lock = SpinLock()
  
     // state
     private var _value: E
@@ -34,15 +34,15 @@ public class Variable<Element> : ObservableType {
     */
     public var value: E {
         get {
-            return lock.calculateLocked {
-                return _value
-            }
+            _lock.lock(); defer { _lock.unlock() }
+            return _value
         }
         set(newValue) {
-            lock.performLocked {
-                _value = newValue
-            }
-            self.subject.on(.Next(newValue))
+            _lock.lock()
+            _value = newValue
+            _lock.unlock()
+
+            _subject.on(.Next(newValue))
         }
     }
     
@@ -52,30 +52,18 @@ public class Variable<Element> : ObservableType {
     - parameter value: Initial variable value.
     */
     public init(_ value: Element) {
-        self._value = value
-        self.subject = BehaviorSubject(value: value)
-    }
-    
-    /**
-    Subscribes an observer to sequence of variable values.
-    
-    Immediately upon subscription current value is sent to the observer.
-    
-    - parameter observer: Observer to subscribe to variable values.
-    - returns: Disposable object that can be used to unsubscribe the observer from the variable.
-    */
-    public func subscribe<O: ObserverType where O.E == E>(observer: O) -> Disposable {
-        return self.subject.subscribe(observer)
+        _value = value
+        _subject = BehaviorSubject(value: value)
     }
     
     /**
     - returns: Canonical interface for push style sequence
     */
     public func asObservable() -> Observable<E> {
-        return self.subject
+        return _subject
     }
-    
+
     deinit {
-        self.subject.on(.Completed)
+        _subject.on(.Completed)
     }
 }

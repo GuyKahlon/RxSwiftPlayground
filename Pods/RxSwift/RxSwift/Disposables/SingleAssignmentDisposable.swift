@@ -3,7 +3,7 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 2/15/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -14,21 +14,19 @@ Represents a disposable resource which only allows a single assignment of its un
 If an underlying disposable resource has already been set, future attempts to set the underlying disposable resource will throw an exception.
 */
 public class SingleAssignmentDisposable : DisposeBase, Disposable, Cancelable {
-    var lock = SpinLock()
+    private var _lock = SpinLock()
     
     // state
-    var _disposed = false
-    var _disposableSet = false
-    var _disposable = nil as Disposable?
+    private var _disposed = false
+    private var _disposableSet = false
+    private var _disposable = nil as Disposable?
 
     /**
     - returns: A value that indicates whether the object is disposed.
     */
     public var disposed: Bool {
         get {
-            return lock.calculateLocked {
-                return _disposed
-            }
+            return _disposed
         }
     }
 
@@ -46,47 +44,47 @@ public class SingleAssignmentDisposable : DisposeBase, Disposable, Cancelable {
     */
     public var disposable: Disposable {
         get {
-            return lock.calculateLocked {
-                return _disposable ?? NopDisposable.instance
-            }
+            _lock.lock(); defer { _lock.unlock() }
+            return _disposable ?? NopDisposable.instance
         }
         set {
-            let disposable: Disposable? = lock.calculateLocked {
-                if _disposableSet {
-                    rxFatalError("oldState.disposable != nil")
-                }
-
-                _disposableSet = true
-
-                if _disposed {
-                    return newValue
-                }
-
-                _disposable = newValue
-
-                return nil
-            }
-
-            if let disposable = disposable {
-                disposable.dispose()
-            }
+            _setDisposable(newValue)?.dispose()
         }
+    }
+
+    private func _setDisposable(newValue: Disposable) -> Disposable? {
+        if _disposableSet {
+            rxFatalError("oldState.disposable != nil")
+        }
+
+        _disposableSet = true
+
+        if _disposed {
+            return newValue
+        }
+
+        _disposable = newValue
+
+        return nil
     }
 
     /**
     Disposes the underlying disposable.
     */
     public func dispose() {
-        let disposable: Disposable? = lock.calculateLocked {
-            _disposed = true
-            let dispose = _disposable
-            _disposable = nil
-
-            return dispose
+        if _disposed {
+            return
         }
+        _dispose()?.dispose()
+    }
 
-        if let disposable = disposable {
-            disposable.dispose()
-        }
+    private func _dispose() -> Disposable? {
+        _lock.lock(); defer { _lock.unlock() }
+
+        _disposed = true
+        let disposable = _disposable
+        _disposable = nil
+
+        return disposable
     }
 }

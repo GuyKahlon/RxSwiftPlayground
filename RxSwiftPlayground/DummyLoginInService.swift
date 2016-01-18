@@ -14,25 +14,23 @@ typealias DummyCompletionBlock = (DummyResponse) -> Void
 
 class DummyLoginInService{
     
-    class func login(email: String, password: String, completion: DummyCompletionBlock){
-        
-        let delayTime = dispatch_time(DISPATCH_TIME_NOW, Int64(2 * Double(NSEC_PER_SEC)))
-        dispatch_after(delayTime, dispatch_get_main_queue()) {
-            let success = email == "email@test.com" && password == "1234"
-            completion(success);
-        }
-    }
+  class func login(email: String, password: String, completion: DummyCompletionBlock) {
     
-    class func login(email: String, password: String) -> Observable<DummyResponse>{
-        return create { observer in
-            self.login(email, password: password, completion: { (success: DummyResponse) -> Void in
-                observer.on(.Next(success))
-                observer.on(.Completed)
-            })
-            
-            return AnonymousDisposable {}
-        }
+    let delayTime = dispatch_time(DISPATCH_TIME_NOW, Int64(2 * Double(NSEC_PER_SEC)))
+    dispatch_after(delayTime, dispatch_get_main_queue()) {
+      let success = email == "email@test.com" && password == "1234"
+      completion(success)
     }
-
-
+  }
+  
+  class func login(email: String, password: String) -> Observable<DummyResponse> {
+    return Observable.create { observer in
+      self.login(email, password: password, completion: { (success: DummyResponse) -> Void in
+          observer.on(.Next(success))
+          observer.on(.Completed)
+      })
+      
+      return AnonymousDisposable {}
+    }
+  }
 }

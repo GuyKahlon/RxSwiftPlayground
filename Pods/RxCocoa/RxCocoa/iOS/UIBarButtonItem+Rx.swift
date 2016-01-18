@@ -1,10 +1,12 @@
 //
-//  UIBarButtonItem.swift
+//  UIBarButtonItem+Rx.swift
 //  RxCocoa
 //
 //  Created by Daniel Tartaglia on 5/31/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
+
+#if os(iOS) || os(tvOS)
 
 import UIKit
 #if !RX_NO_MODULE
@@ -13,25 +15,50 @@ import RxSwift
 
 extension UIBarButtonItem {
     
+	/**
+	Bindable sink for `enabled` property.
+	*/
+	public var rx_enabled: AnyObserver<Bool> {
+		return AnyObserver { [weak self] event in
+			MainScheduler.ensureExecutingOnScheduler()
+			
+			switch event {
+			case .Next(let value):
+				self?.enabled = value
+			case .Error(let error):
+				bindingErrorToInterface(error)
+				break
+			case .Completed:
+				break
+			}
+		}
+	}
+	
     /**
     Reactive wrapper for target action pattern on `self`.
     */
     public var rx_tap: ControlEvent<Void> {
-        let source: Observable<Void> = AnonymousObservable { observer in
-            let target = BarButtonItemTarget(barButtonItem: self) {
+        let source: Observable<Void> = Observable.create { [weak self] observer in
+
+            guard let control = self else {
+                observer.on(.Completed)
+                return NopDisposable.instance
+            }
+
+            let target = BarButtonItemTarget(barButtonItem: control) {
                 observer.on(.Next())
             }
             return target
         }.takeUntil(rx_deallocated)
         
-        return ControlEvent(source: source)
+        return ControlEvent(events: source)
     }
     
 }
 
 
 @objc
-class BarButtonItemTarget: NSObject, Disposable {
+class BarButtonItemTarget: RxTarget {
     typealias Callback = () -> Void
     
     weak var barButtonItem: UIBarButtonItem?
@@ -45,12 +72,11 @@ class BarButtonItemTarget: NSObject, Disposable {
         barButtonItem.action = Selector("action:")
     }
     
-    deinit {
-        dispose()
-    }
-    
-    func dispose() {
+    override func dispose() {
+        super.dispose()
+#if DEBUG
         MainScheduler.ensureExecutingOnScheduler()
+#endif
         
         barButtonItem?.target = nil
         barButtonItem?.action = nil
@@ -63,3 +89,5 @@ class BarButtonItemTarget: NSObject, Disposable {
     }
     
 }
+
+#endif

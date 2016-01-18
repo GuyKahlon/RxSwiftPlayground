@@ -3,36 +3,35 @@
 //  RxSwift
 //
 //  Created by Krunoslav Zaher on 4/19/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
 
-class DeferredSink<O: ObserverType> : Sink<O>, ObserverType {
+class DeferredSink<S: ObservableType, O: ObserverType where S.E == O.E> : Sink<O>, ObserverType {
     typealias E = O.E
-    typealias Parent = Deferred<E>
-    
-    let parent: Parent
-    
-    init(parent: Parent, observer: O, cancel: Disposable) {
-        self.parent = parent
-        super.init(observer: observer, cancel: cancel)
+
+    private let _observableFactory: () throws -> S
+
+    init(observableFactory: () throws -> S, observer: O) {
+        _observableFactory = observableFactory
+        super.init(observer: observer)
     }
     
     func run() -> Disposable {
         do {
-            let result = try parent.eval()
-            return result.subscribeSafe(self)
+            let result = try _observableFactory()
+            return result.subscribe(self)
         }
         catch let e {
-            observer?.on(.Error(e))
-            self.dispose()
+            forwardOn(.Error(e))
+            dispose()
             return NopDisposable.instance
         }
     }
     
     func on(event: Event<E>) {
-        observer?.on(event)
+        forwardOn(event)
         
         switch event {
         case .Next:
@@ -45,22 +44,18 @@ class DeferredSink<O: ObserverType> : Sink<O>, ObserverType {
     }
 }
 
-class Deferred<Element> : Producer<Element> {
-    typealias Factory = () throws -> Observable<Element>
+class Deferred<S: ObservableType> : Producer<S.E> {
+    typealias Factory = () throws -> S
     
-    let observableFactory : Factory
+    private let _observableFactory : Factory
     
     init(observableFactory: Factory) {
-        self.observableFactory = observableFactory
+        _observableFactory = observableFactory
     }
     
-    override func run<O: ObserverType where O.E == Element>(observer: O, cancel: Disposable, setSink: (Disposable) -> Void) -> Disposable {
-        let sink = DeferredSink(parent: self, observer: observer, cancel: cancel)
-        setSink(sink)
-        return sink.run()
-    }
-    
-    func eval() throws -> Observable<Element> {
-        return try observableFactory()
+    override func run<O: ObserverType where O.E == S.E>(observer: O) -> Disposable {
+        let sink = DeferredSink(observableFactory: _observableFactory, observer: observer)
+        sink.disposable = sink.run()
+        return sink
     }
 }

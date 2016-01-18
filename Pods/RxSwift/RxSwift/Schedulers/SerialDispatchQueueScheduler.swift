@@ -1,9 +1,9 @@
 //
-//  SerialQueueScheduler.swift
+//  SerialDispatchQueueScheduler.swift
 //  Rx
 //
 //  Created by Krunoslav Zaher on 2/8/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -25,12 +25,15 @@ In case some customization need to be made on it before usage,
 internal serial queue can be customized using `serialQueueConfiguration`
 callback.
 */
-public class SerialDispatchQueueScheduler: Scheduler {
+public class SerialDispatchQueueScheduler: SchedulerType {
     public typealias TimeInterval = NSTimeInterval
     public typealias Time = NSDate
     
-    private let serialQueue : dispatch_queue_t
-    
+    private let _serialQueue : dispatch_queue_t
+
+    /**
+    - returns: Current time.
+    */
     public var now : NSDate {
         get {
             return NSDate()
@@ -38,21 +41,12 @@ public class SerialDispatchQueueScheduler: Scheduler {
     }
     
     // leeway for scheduling timers
-    var leeway: Int64 = 0
+    private var _leeway: Int64 = 0
     
     init(serialQueue: dispatch_queue_t) {
-        self.serialQueue = serialQueue
+        _serialQueue = serialQueue
     }
 
-    /**
-    Constructs new `SerialDispatchQueueScheduler` with internal serial queue named `internalSerialQueueName`.
-    
-    - parameter internalSerialQueueName: Name of internal serial dispatch queue.
-    */
-    public convenience init(internalSerialQueueName: String) {
-        self.init(internalSerialQueueName: internalSerialQueueName, serialQueueConfiguration: { _ -> Void in })
-    }
-    
     /**
     Constructs new `SerialDispatchQueueScheduler` with internal serial queue named `internalSerialQueueName`.
     
@@ -61,9 +55,9 @@ public class SerialDispatchQueueScheduler: Scheduler {
     - parameter internalSerialQueueName: Name of internal serial dispatch queue.
     - parameter serialQueueConfiguration: Additional configuration of internal serial dispatch queue.
     */
-    public convenience init(internalSerialQueueName: String, serialQueueConfiguration: (dispatch_queue_t) -> Void) {
+    public convenience init(internalSerialQueueName: String, serialQueueConfiguration: ((dispatch_queue_t) -> Void)? = nil) {
         let queue = dispatch_queue_create(internalSerialQueueName, DISPATCH_QUEUE_SERIAL)
-        serialQueueConfiguration(queue)
+        serialQueueConfiguration?(queue)
         self.init(serialQueue: queue)
     }
     
@@ -78,35 +72,19 @@ public class SerialDispatchQueueScheduler: Scheduler {
         dispatch_set_target_queue(serialQueue, queue)
         self.init(serialQueue: serialQueue)
     }
-    
-    /**
-    Constructs new `SerialDispatchQueueScheduler` that wraps on of the global concurrent dispatch queues.
-    
-    - parameter globalConcurrentQueuePriority: Identifier for global dispatch queue with specified priority.
-    */
-    public convenience init(globalConcurrentQueuePriority: DispatchQueueSchedulerPriority) {
-        self.init(globalConcurrentQueuePriority: globalConcurrentQueuePriority, internalSerialQueueName: "rx.global_dispatch_queue.serial.\(globalConcurrentQueuePriority)")
-    }
 
     /**
-    Constructs new `SerialDispatchQueueScheduler` that wraps on of the global concurrent dispatch queues.
-    
-    - parameter globalConcurrentQueuePriority: Identifier for global dispatch queue with specified priority.
-    - parameter internalSerialQueueName: Custom name for internal serial dispatch queue proxy.
-    */
-    public convenience init(globalConcurrentQueuePriority: DispatchQueueSchedulerPriority, internalSerialQueueName: String) {
-        var priority: Int = 0
-        switch globalConcurrentQueuePriority {
-        case .High:
-            priority = DISPATCH_QUEUE_PRIORITY_HIGH
-        case .Default:
-            priority = DISPATCH_QUEUE_PRIORITY_DEFAULT
-        case .Low:
-            priority = DISPATCH_QUEUE_PRIORITY_LOW
-        }
+     Constructs new `SerialDispatchQueueScheduler` that wraps on of the global concurrent dispatch queues.
+     
+     - parameter globalConcurrentQueueQOS: Identifier for global dispatch queue with specified quality of service class.
+     - parameter internalSerialQueueName: Custom name for internal serial dispatch queue proxy.
+     */
+    @available(iOS 8, OSX 10.10, *)
+    public convenience init(globalConcurrentQueueQOS: DispatchQueueSchedulerQOS, internalSerialQueueName: String = "rx.global_dispatch_queue.serial") {
+        let priority = globalConcurrentQueueQOS.QOSClass
         self.init(queue: dispatch_get_global_queue(priority, UInt(0)), internalSerialQueueName: internalSerialQueueName)
     }
-    
+
     class func convertTimeIntervalToDispatchInterval(timeInterval: NSTimeInterval) -> Int64 {
         return Int64(timeInterval * Double(NSEC_PER_SEC))
     }
@@ -129,7 +107,7 @@ public class SerialDispatchQueueScheduler: Scheduler {
     func scheduleInternal<StateType>(state: StateType, action: (StateType) -> Disposable) -> Disposable {
         let cancel = SingleAssignmentDisposable()
         
-        dispatch_async(self.serialQueue) {
+        dispatch_async(_serialQueue) {
             if cancel.disposed {
                 return
             }
@@ -150,7 +128,7 @@ public class SerialDispatchQueueScheduler: Scheduler {
     - returns: The disposable object used to cancel the scheduled action (best effort).
     */
     public final func scheduleRelative<StateType>(state: StateType, dueTime: NSTimeInterval, action: (StateType) -> Disposable) -> Disposable {
-        let timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, self.serialQueue)
+        let timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _serialQueue)
         
         let dispatchInterval = MainScheduler.convertTimeIntervalToDispatchTime(dueTime)
         
@@ -182,7 +160,7 @@ public class SerialDispatchQueueScheduler: Scheduler {
     - returns: The disposable object used to cancel the scheduled action (best effort).
     */
     public func schedulePeriodic<StateType>(state: StateType, startAfter: TimeInterval, period: TimeInterval, action: (StateType) -> StateType) -> Disposable {
-        let timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, self.serialQueue)
+        let timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _serialQueue)
         
         let initial = MainScheduler.convertTimeIntervalToDispatchTime(startAfter)
         let dispatchInterval = MainScheduler.convertTimeIntervalToDispatchInterval(period)

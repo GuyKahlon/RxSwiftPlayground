@@ -3,57 +3,54 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 2/8/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
-import Darwin
 
 class AnonymousObservableSink<O: ObserverType> : Sink<O>, ObserverType {
     typealias E = O.E
     typealias Parent = AnonymousObservable<E>
-    
-    // state
-    var isStopped: Int32 = 0
 
-    override init(observer: O, cancel: Disposable) {
-        super.init(observer: observer, cancel: cancel)
+    // state
+    private var _isStopped: AtomicInt = 0
+
+    override init(observer: O) {
+        super.init(observer: observer)
     }
-    
+
     func on(event: Event<E>) {
         switch event {
         case .Next:
-            if isStopped == 1 {
+            if _isStopped == 1 {
                 return
             }
-            self.observer?.on(event)
-        case .Error:
-            fallthrough
-        case .Completed:
-            if OSAtomicCompareAndSwap32(0, 1, &isStopped) {
-                self.observer?.on(event)
-                self.dispose()
+            forwardOn(event)
+        case .Error, .Completed:
+            if AtomicCompareAndSwap(0, 1, &_isStopped) {
+                forwardOn(event)
+                dispose()
             }
         }
     }
-    
+
     func run(parent: Parent) -> Disposable {
-        return parent.subscribeHandler(ObserverOf(self))
+        return parent._subscribeHandler(AnyObserver(self))
     }
 }
 
-public class AnonymousObservable<Element> : Producer<Element> {
-    public typealias SubscribeHandler = (ObserverOf<Element>) -> Disposable
+class AnonymousObservable<Element> : Producer<Element> {
+    typealias SubscribeHandler = (AnyObserver<Element>) -> Disposable
 
-    public let subscribeHandler: SubscribeHandler
-    
-    public init(_ subscribeHandler: SubscribeHandler) {
-        self.subscribeHandler = subscribeHandler
+    let _subscribeHandler: SubscribeHandler
+
+    init(_ subscribeHandler: SubscribeHandler) {
+        _subscribeHandler = subscribeHandler
     }
-    
-    public override func run<O : ObserverType where O.E == Element>(observer: O, cancel: Disposable, setSink: (Disposable) -> Void) -> Disposable {
-        let sink = AnonymousObservableSink(observer: observer, cancel: cancel)
-        setSink(sink)
-        return sink.run(self)
+
+    override func run<O : ObserverType where O.E == Element>(observer: O) -> Disposable {
+        let sink = AnonymousObservableSink(observer: observer)
+        sink.disposable = sink.run(self)
+        return sink
     }
 }

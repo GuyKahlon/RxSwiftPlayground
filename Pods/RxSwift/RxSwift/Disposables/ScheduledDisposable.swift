@@ -3,65 +3,58 @@
 //  RxSwift
 //
 //  Created by Krunoslav Zaher on 6/13/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
+
+private let disposeScheduledDisposable: ScheduledDisposable -> Disposable = { sd in
+    sd.disposeInner()
+    return NopDisposable.instance
+}
 
 /**
 Represents a disposable resource whose disposal invocation will be scheduled on the specified scheduler.
 */
 public class ScheduledDisposable : Cancelable {
-    public let scheduler: ImmediateScheduler
-    var _disposable: Disposable?
-    var lock = SpinLock()
+    public let scheduler: ImmediateSchedulerType
 
-    var disposable: Disposable {
-        get {
-            return lock.calculateLocked {
-                _disposable ?? NopDisposable.instance
-            }
-        }
-    }
-    
+    private var _disposed: AtomicInt = 0
+
+    // state
+    private var _disposable: Disposable?
+
     /**
     - returns: Was resource disposed.
     */
     public var disposed: Bool {
         get {
-            return lock.calculateLocked {
-                return _disposable == nil
-            }
+            return _disposed == 1
         }
     }
-    
+
     /**
     Initializes a new instance of the `ScheduledDisposable` that uses a `scheduler` on which to dispose the `disposable`.
-    
+
     - parameter scheduler: Scheduler where the disposable resource will be disposed on.
     - parameter disposable: Disposable resource to dispose on the given scheduler.
     */
-    init(scheduler: ImmediateScheduler, disposable: Disposable) {
+    init(scheduler: ImmediateSchedulerType, disposable: Disposable) {
         self.scheduler = scheduler
-        self._disposable = disposable
+        _disposable = disposable
     }
-    
+
     /**
     Disposes the wrapped disposable on the provided scheduler.
     */
     public func dispose() {
-        scheduler.schedule(()) {
-            self.disposeInner()
-            return NopDisposable.instance
-        }
+        scheduler.schedule(self, action: disposeScheduledDisposable)
     }
-    
+
     func disposeInner() {
-        lock.performLocked {
-            if let disposable = _disposable {
-                disposable.dispose()
-                _disposable = nil
-            }
+        if AtomicCompareAndSwap(0, 1, &_disposed) {
+            _disposable!.dispose()
+            _disposable = nil
         }
     }
 }

@@ -3,7 +3,7 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 4/6/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -18,11 +18,11 @@ class StartWith<Element>: Producer<Element> {
         super.init()
     }
 
-    override func run<O : ObserverType where O.E == Element>(observer: O, cancel: Disposable, setSink: (Disposable) -> Void) -> Disposable {
+    override func run<O : ObserverType where O.E == Element>(observer: O) -> Disposable {
         for e in elements {
             observer.on(.Next(e))
         }
 
-        return source.subscribeSafe(observer)
+        return source.subscribe(observer)
     }
 }

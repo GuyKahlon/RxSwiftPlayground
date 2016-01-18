@@ -3,7 +3,7 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 7/5/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -11,8 +11,11 @@ import Foundation
 import RxSwift
 #endif
 
-class KVOObservable<Element> : _Producer<Element?>
-                             , KVOObservableProtocol {
+class KVOObservable<Element>
+    : ObservableType
+    , KVOObservableProtocol {
+    typealias E = Element?
+
     unowned var target: AnyObject
     var strongTarget: AnyObject?
     
@@ -30,7 +33,7 @@ class KVOObservable<Element> : _Producer<Element?>
         }
     }
     
-    override func run<O : ObserverType where O.E == Element?>(observer: O, cancel: Disposable, setSink: (Disposable) -> Void) -> Disposable {
+    func subscribe<O : ObserverType where O.E == Element?>(observer: O) -> Disposable {
         let observer = KVOObserver(parent: self) { (value) in
             if value as? NSNull != nil {
                 observer.on(.Next(nil))
@@ -79,7 +82,7 @@ extension ObservableType where E == AnyObject? {
             
         return deallocating
             .map { _ in
-                return just(nil)
+                return Observable.just(nil)
             }
             .startWith(self.asObservable())
             .switchLatest()
@@ -97,11 +100,11 @@ func observeWeaklyKeyPathFor(
     let propertyName = keyPathSections[0]
     let remainingPaths = Array(keyPathSections[1..<keyPathSections.count])
     
-    let property = class_getProperty(object_getClass(target), propertyName);
+    let property = class_getProperty(object_getClass(target), propertyName)
     if property == nil {
-        return failWith(rxError(.KeyPathInvalid, "Object \(target) doesn't have property named `\(propertyName)`"))
+        return Observable.error(RxCocoaError.InvalidPropertyName(object: target, propertyName: propertyName))
     }
-    let propertyAttributes = property_getAttributes(property);
+    let propertyAttributes = property_getAttributes(property)
     
     // should dealloc hook be in place if week property, or just create strong reference because it doesn't matter
     let isWeak = isWeakProperty(String.fromCString(propertyAttributes) ?? "")
@@ -109,26 +112,26 @@ func observeWeaklyKeyPathFor(
     
     // KVO recursion for value changes
     return propertyObservable
-        .map { (nextTarget: AnyObject?) -> Observable<AnyObject?> in
+        .flatMapLatest { (nextTarget: AnyObject?) -> Observable<AnyObject?> in
             if nextTarget == nil {
-               return just(nil)
+               return Observable.just(nil)
             }
             let nextObject = nextTarget! as? NSObject
 
             let strongTarget: AnyObject? = weakTarget
             
             if nextObject == nil {
-                return failWith(rxError(.KeyPathInvalid, "Observed \(nextTarget) as property `\(propertyName)` on `\(strongTarget)` which is not `NSObject`."))
+                return Observable.error(RxCocoaError.InvalidObjectOnKeyPath(object: nextTarget!, sourceObject: strongTarget ?? NSNull(), propertyName: propertyName))
             }
 
             // if target is alive, then send change
             // if it's deallocated, don't send anything
             if strongTarget == nil {
-                return empty()
+                return Observable.empty()
             }
             
             let nextElementsObservable = keyPathSections.count == 1
-                ? just(nextTarget)
+                ? Observable.just(nextTarget)
                 : observeWeaklyKeyPathFor(nextObject!, keyPathSections: remainingPaths, options: options)
            
             if isWeak {
@@ -139,7 +142,6 @@ func observeWeaklyKeyPathFor(
                 return nextElementsObservable
             }
         }
-        .switchLatest()
 }
 #endif
 

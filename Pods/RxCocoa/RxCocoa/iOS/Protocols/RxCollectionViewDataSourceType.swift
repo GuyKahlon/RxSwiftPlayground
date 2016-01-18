@@ -3,8 +3,10 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 6/29/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
+
+#if os(iOS) || os(tvOS)
 
 import Foundation
 import UIKit
@@ -30,3 +32,5 @@ public protocol RxCollectionViewDataSourceType /*: UICollectionViewDataSource*/ 
     */
     func collectionView(collectionView: UICollectionView, observedEvent: Event<Element>) -> Void
 }
+
+#endif

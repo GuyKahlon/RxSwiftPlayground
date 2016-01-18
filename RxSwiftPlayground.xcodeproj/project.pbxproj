@@ -13,7 +13,7 @@
 		50F8C5971B9F808C00350BA5 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 50F8C5951B9F808C00350BA5 /* LaunchScreen.storyboard */; };
 		50F8C59F1B9F80E600350BA5 /* DummyLoginInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F8C59E1B9F80E600350BA5 /* DummyLoginInService.swift */; };
 		50F8C5A41B9F811000350BA5 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F8C5A11B9F811000350BA5 /* LoginViewController.swift */; };
-		5540EEC9558D546879141C9E /* Pods.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3051F858EF0E734E4936FE0 /* Pods.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		5540EEC9558D546879141C9E /* Pods.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3051F858EF0E734E4936FE0 /* Pods.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */

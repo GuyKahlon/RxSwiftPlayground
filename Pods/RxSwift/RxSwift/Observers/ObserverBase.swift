@@ -3,46 +3,37 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 2/15/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
 
-class ObserverBase<ElementType> : Observer<ElementType>, Disposable {
-    typealias Element = ElementType
-    
-    var lock = SpinLock()
-    var isStopped: Bool = false
-    
-    override init() {
-        super.init()
-    }
-    
-    override func on(event: Event<Element>) {
+class ObserverBase<ElementType> : Disposable, ObserverType {
+    typealias E = ElementType
+
+    private var _isStopped: AtomicInt = 0
+
+    func on(event: Event<E>) {
         switch event {
         case .Next:
-            if !isStopped {
+            if _isStopped == 0 {
                 onCore(event)
             }
-        case .Error: fallthrough
-        case .Completed:
-            let wasStopped: Bool = lock.calculateLocked {
-                let wasStopped = self.isStopped
-                self.isStopped = true
-                return wasStopped
+        case .Error, .Completed:
+
+            if !AtomicCompareAndSwap(0, 1, &_isStopped) {
+                return
             }
-            
-            if !wasStopped {
-                self.onCore(event)
-            }
+
+            onCore(event)
         }
     }
-    
-    func onCore(event: Event<Element>) {
-        return abstractMethod()
+
+    func onCore(event: Event<E>) {
+        abstractMethod()
     }
-    
+
     func dispose() {
-        isStopped = true
+        _isStopped = 1
     }
 }

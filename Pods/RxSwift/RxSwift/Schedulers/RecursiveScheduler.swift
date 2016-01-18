@@ -3,80 +3,57 @@
 //  RxSwift
 //
 //  Created by Krunoslav Zaher on 6/7/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
 
-class RecursiveScheduler<State, S: Scheduler>: RecursiveSchedulerOf<State, S.TimeInterval> {
-    let scheduler: S
-    
-    init(scheduler: S, action: Action) {
-        self.scheduler = scheduler
-        super.init(action: action)
-    }
-    
-    override func scheduleRelativeAdapter(state: State, dueTime: S.TimeInterval, action: State -> Disposable) -> Disposable {
-        return scheduler.scheduleRelative(state, dueTime: dueTime, action: action)
-    }
-    
-    override func scheduleAdapter(state: State, action: State -> Disposable) -> Disposable {
-        return scheduler.schedule(state, action: action)
-    }
-}
-
 /**
 Type erased recursive scheduler.
 */
-public class RecursiveSchedulerOf<State, TimeInterval> {
-    typealias Action =  (state: State, scheduler: RecursiveSchedulerOf<State, TimeInterval>) -> Void
+class AnyRecursiveScheduler<State> {
+    typealias Action =  (state: State, scheduler: AnyRecursiveScheduler<State>) -> Void
 
-    let lock = NSRecursiveLock()
-    let group = CompositeDisposable()
+    private let _lock = NSRecursiveLock()
     
-    var action: Action?
+    // state
+    private let _group = CompositeDisposable()
+
+    private var _scheduler: SchedulerType
+    private var _action: Action?
     
-    init(action: Action) {
-        self.action = action
+    init(scheduler: SchedulerType, action: Action) {
+        _action = action
+        _scheduler = scheduler
     }
 
-    // abstract methods
-
-    func scheduleRelativeAdapter(state: State, dueTime: TimeInterval, action: State -> Disposable) -> Disposable {
-        return abstractMethod()
-    }
-    
-    func scheduleAdapter(state: State, action: State -> Disposable) -> Disposable {
-        return abstractMethod()
-    }
-    
     /**
     Schedules an action to be executed recursively.
     
     - parameter state: State passed to the action to be executed.
     - parameter dueTime: Relative time after which to execute the recursive action.
     */
-    public func schedule(state: State, dueTime: TimeInterval) {
+    func schedule(state: State, dueTime: RxTimeInterval) {
 
         var isAdded = false
         var isDone = false
         
         var removeKey: CompositeDisposable.DisposeKey? = nil
-        let d = scheduleRelativeAdapter(state, dueTime: dueTime) { (state) -> Disposable in
+        let d = _scheduler.scheduleRelative(state, dueTime: dueTime) { (state) -> Disposable in
             // best effort
-            if self.group.disposed {
+            if self._group.disposed {
                 return NopDisposable.instance
             }
             
-            let action = self.lock.calculateLocked { () -> Action? in
+            let action = self._lock.calculateLocked { () -> Action? in
                 if isAdded {
-                    self.group.removeDisposable(removeKey!)
+                    self._group.removeDisposable(removeKey!)
                 }
                 else {
                     isDone = true
                 }
                 
-                return self.action
+                return self._action
             }
             
             if let action = action {
@@ -86,9 +63,9 @@ public class RecursiveSchedulerOf<State, TimeInterval> {
             return NopDisposable.instance
         }
             
-        lock.performLocked {
+        _lock.performLocked {
             if !isDone {
-                removeKey = group.addDisposable(d)
+                removeKey = _group.addDisposable(d)
                 isAdded = true
             }
         }
@@ -99,27 +76,27 @@ public class RecursiveSchedulerOf<State, TimeInterval> {
     
     - parameter state: State passed to the action to be executed.
     */
-    public func schedule(state: State) {
+    func schedule(state: State) {
             
         var isAdded = false
         var isDone = false
         
         var removeKey: CompositeDisposable.DisposeKey? = nil
-        let d = scheduleAdapter(state) { (state) -> Disposable in
+        let d = _scheduler.schedule(state) { (state) -> Disposable in
             // best effort
-            if self.group.disposed {
+            if self._group.disposed {
                 return NopDisposable.instance
             }
             
-            let action = self.lock.calculateLocked { () -> Action? in
+            let action = self._lock.calculateLocked { () -> Action? in
                 if isAdded {
-                    self.group.removeDisposable(removeKey!)
+                    self._group.removeDisposable(removeKey!)
                 }
                 else {
                     isDone = true
                 }
                 
-                return self.action
+                return self._action
             }
            
             if let action = action {
@@ -129,37 +106,37 @@ public class RecursiveSchedulerOf<State, TimeInterval> {
             return NopDisposable.instance
         }
         
-        lock.performLocked {
+        _lock.performLocked {
             if !isDone {
-                removeKey = group.addDisposable(d)
+                removeKey = _group.addDisposable(d)
                 isAdded = true
             }
         }
     }
     
     func dispose() {
-        self.lock.performLocked {
-            self.action = nil
+        _lock.performLocked {
+            _action = nil
         }
-        self.group.dispose()
+        _group.dispose()
     }
 }
 
 /**
 Type erased recursive scheduler.
 */
-public class RecursiveImmediateSchedulerOf<State> {
+class RecursiveImmediateScheduler<State> {
     typealias Action =  (state: State, recurse: State -> Void) -> Void
     
-    var lock = SpinLock()
-    let group = CompositeDisposable()
+    private var _lock = SpinLock()
+    private let _group = CompositeDisposable()
     
-    var action: Action?
-    let scheduler: ImmediateScheduler
+    private var _action: Action?
+    private let _scheduler: ImmediateSchedulerType
     
-    init(action: Action, scheduler: ImmediateScheduler) {
-        self.action = action
-        self.scheduler = scheduler
+    init(action: Action, scheduler: ImmediateSchedulerType) {
+        _action = action
+        _scheduler = scheduler
     }
     
     // immediate scheduling
@@ -169,27 +146,27 @@ public class RecursiveImmediateSchedulerOf<State> {
     
     - parameter state: State passed to the action to be executed.
     */
-    public func schedule(state: State) {
+    func schedule(state: State) {
         
         var isAdded = false
         var isDone = false
         
         var removeKey: CompositeDisposable.DisposeKey? = nil
-        let d = self.scheduler.schedule(state) { (state) -> Disposable in
+        let d = _scheduler.schedule(state) { (state) -> Disposable in
             // best effort
-            if self.group.disposed {
+            if self._group.disposed {
                 return NopDisposable.instance
             }
             
-            let action = self.lock.calculateLocked { () -> Action? in
+            let action = self._lock.calculateLocked { () -> Action? in
                 if isAdded {
-                    self.group.removeDisposable(removeKey!)
+                    self._group.removeDisposable(removeKey!)
                 }
                 else {
                     isDone = true
                 }
                 
-                return self.action
+                return self._action
             }
             
             if let action = action {
@@ -199,18 +176,18 @@ public class RecursiveImmediateSchedulerOf<State> {
             return NopDisposable.instance
         }
         
-        lock.performLocked {
+        _lock.performLocked {
             if !isDone {
-                removeKey = group.addDisposable(d)
+                removeKey = _group.addDisposable(d)
                 isAdded = true
             }
         }
     }
     
     func dispose() {
-        self.lock.performLocked {
-            self.action = nil
+        _lock.performLocked {
+            _action = nil
         }
-        self.group.dispose()
+        _group.dispose()
     }
 }

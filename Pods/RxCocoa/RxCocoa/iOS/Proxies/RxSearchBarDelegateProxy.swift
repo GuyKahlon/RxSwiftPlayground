@@ -3,8 +3,10 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 7/4/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
+
+#if os(iOS) || os(tvOS)
 
 import Foundation
 import UIKit
@@ -26,3 +28,5 @@ class RxSearchBarDelegateProxy : DelegateProxy
         searchBar.delegate = castOptionalOrFatalError(delegate)
     }
 }
+
+#endif

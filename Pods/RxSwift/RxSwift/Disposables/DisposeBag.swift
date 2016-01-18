@@ -3,7 +3,7 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 3/25/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -32,9 +32,12 @@ or create new one in it's place.
 In case explicit disposal is necessary, there is also `CompositeDisposable`.
 */
 public class DisposeBag: DisposeBase {
-    private var lock = SpinLock()
-    var disposables = [Disposable]()
-    var disposed = false
+    
+    private var _lock = SpinLock()
+    
+    // state
+    private var _disposables = [Disposable]()
+    private var _disposed = false
     
     /**
     Constructs new empty dispose bag.
@@ -49,37 +52,40 @@ public class DisposeBag: DisposeBase {
     - parameter disposable: Disposable to add.
     */
     public func addDisposable(disposable: Disposable) {
-        let dispose = lock.calculateLocked { () -> Bool in
-            if disposed {
-                return true
-            }
-            
-            disposables.append(disposable)
-            
-            return false
+        _addDisposable(disposable)?.dispose()
+    }
+
+    private func _addDisposable(disposable: Disposable) -> Disposable? {
+        _lock.lock(); defer { _lock.unlock() }
+        if _disposed {
+            return disposable
         }
-        
-        if dispose {
-            disposable.dispose()
-        }
+
+        _disposables.append(disposable)
+
+        return nil
     }
 
     /**
     This is internal on purpose, take a look at `CompositeDisposable` instead.
     */
-    func dispose() {
-        let oldDisposables = lock.calculateLocked { () -> [Disposable] in
-            let disposables = self.disposables
-            
-            self.disposables.removeAll(keepCapacity: false)
-            self.disposed = true
-            
-            return disposables
-        }
-        
+    private func dispose() {
+        let oldDisposables = _dispose()
+
         for disposable in oldDisposables {
             disposable.dispose()
         }
+    }
+
+    private func _dispose() -> [Disposable] {
+        _lock.lock(); defer { _lock.unlock() }
+
+        let disposables = _disposables
+        
+        _disposables.removeAll(keepCapacity: false)
+        _disposed = true
+        
+        return disposables
     }
     
     deinit {

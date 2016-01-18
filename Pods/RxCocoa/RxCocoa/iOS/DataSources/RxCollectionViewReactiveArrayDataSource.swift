@@ -3,8 +3,10 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 6/29/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
+
+#if os(iOS) || os(tvOS)
 
 import Foundation
 import UIKit
@@ -13,7 +15,9 @@ import RxSwift
 #endif
 
 // objc monkey business
-class _RxCollectionViewReactiveArrayDataSource: NSObject, UICollectionViewDataSource {
+class _RxCollectionViewReactiveArrayDataSource
+    : NSObject
+    , UICollectionViewDataSource {
     
     func numberOfSectionsInCollectionView(collectionView: UICollectionView) -> Int {
         return 1
@@ -28,7 +32,7 @@ class _RxCollectionViewReactiveArrayDataSource: NSObject, UICollectionViewDataSo
     }
 
     func _collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
-        return rxAbstractMethod()
+        rxAbstractMethod()
     }
     
     func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
@@ -36,8 +40,9 @@ class _RxCollectionViewReactiveArrayDataSource: NSObject, UICollectionViewDataSo
     }
 }
 
-class RxCollectionViewReactiveArrayDataSourceSequenceWrapper<S: SequenceType> : RxCollectionViewReactiveArrayDataSource<S.Generator.Element>
-                                                                              , RxCollectionViewDataSourceType {
+class RxCollectionViewReactiveArrayDataSourceSequenceWrapper<S: SequenceType>
+    : RxCollectionViewReactiveArrayDataSource<S.Generator.Element>
+    , RxCollectionViewDataSourceType {
     typealias Element = S
 
     override init(cellFactory: CellFactory) {
@@ -59,7 +64,9 @@ class RxCollectionViewReactiveArrayDataSourceSequenceWrapper<S: SequenceType> : 
 
 
 // Please take a look at `DelegateProxyType.swift`
-class RxCollectionViewReactiveArrayDataSource<Element> : _RxCollectionViewReactiveArrayDataSource {
+class RxCollectionViewReactiveArrayDataSource<Element>
+    : _RxCollectionViewReactiveArrayDataSource
+    , SectionedViewDataSourceType {
     
     typealias CellFactory = (UICollectionView, Int, Element) -> UICollectionViewCell
     
@@ -67,6 +74,14 @@ class RxCollectionViewReactiveArrayDataSource<Element> : _RxCollectionViewReacti
     
     func modelAtIndex(index: Int) -> Element? {
         return itemModels?[index]
+    }
+
+    func modelAtIndexPath(indexPath: NSIndexPath) throws -> Any {
+        precondition(indexPath.section == 0)
+        guard let item = itemModels?[indexPath.item] else {
+            throw RxCocoaError.ItemsNotYetBound(object: self)
+        }
+        return item
     }
     
     var cellFactory: CellFactory
@@ -93,3 +108,5 @@ class RxCollectionViewReactiveArrayDataSource<Element> : _RxCollectionViewReacti
         collectionView.reloadData()
     }
 }
+
+#endif

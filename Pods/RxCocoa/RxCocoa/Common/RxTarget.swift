@@ -3,7 +3,7 @@
 //  RxCocoa
 //
 //  Created by Krunoslav Zaher on 7/12/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
@@ -19,11 +19,26 @@ class RxTarget : NSObject
     override init() {
         super.init()
         self.retainSelf = self
+
+#if TRACE_RESOURCES
+        OSAtomicIncrement32(&resourceCount)
+#endif
+
+#if DEBUG
         MainScheduler.ensureExecutingOnScheduler()
+#endif
     }
     
     func dispose() {
+#if DEBUG
         MainScheduler.ensureExecutingOnScheduler()
+#endif
         self.retainSelf = nil
     }
+
+#if TRACE_RESOURCES
+    deinit {
+        OSAtomicDecrement32(&resourceCount)
+    }
+#endif
 }

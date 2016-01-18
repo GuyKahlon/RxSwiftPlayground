@@ -3,62 +3,55 @@
 //  Rx
 //
 //  Created by Krunoslav Zaher on 2/19/15.
-//  Copyright (c) 2015 Krunoslav Zaher. All rights reserved.
+//  Copyright © 2015 Krunoslav Zaher. All rights reserved.
 //
 
 import Foundation
 
-class Sink<O : ObserverType> : Disposable {
-    private var lock = SpinLock()
-    
-    // state
-    var _observer: O?
-    var _cancel: Disposable
-    var _disposed: Bool = false
-    
-    var observer: O? {
-        get {
-            return lock.calculateLocked { _observer }
-        }
-    }
-    
-    var cancel: Disposable {
-        get {
-            return lock.calculateLocked { _cancel }
-        }
-    }
-    
-    init(observer: O, cancel: Disposable) {
+class Sink<O : ObserverType> : SingleAssignmentDisposable {
+    private let _observer: O
+
+    init(observer: O) {
 #if TRACE_RESOURCES
-        OSAtomicIncrement32(&resourceCount)
+        AtomicIncrement(&resourceCount)
 #endif
         _observer = observer
-        _cancel = cancel
     }
     
-    func dispose() {
-        let cancel: Disposable? = lock.calculateLocked {
-            if _disposed {
-                return nil
-            }
-            
-            let cancel = _cancel
-            
-            _disposed = true
-            _observer = nil
-            _cancel = NopDisposable.instance
-            
-            return cancel
+    final func forwardOn(event: Event<O.E>) {
+        if disposed {
+            return
         }
-        
-        if let cancel = cancel {
-            cancel.dispose()
-        }
+        _observer.on(event)
     }
     
+    final func forwarder() -> SinkForward<O> {
+        return SinkForward(forward: self)
+    }
+
     deinit {
 #if TRACE_RESOURCES
-        OSAtomicDecrement32(&resourceCount)
+        AtomicDecrement(&resourceCount)
 #endif
+    }
+}
+
+class SinkForward<O: ObserverType>: ObserverType {
+    typealias E = O.E
+    
+    private let _forward: Sink<O>
+    
+    init(forward: Sink<O>) {
+        _forward = forward
+    }
+    
+    func on(event: Event<E>) {
+        switch event {
+        case .Next:
+            _forward._observer.on(event)
+        case .Error, .Completed:
+            _forward._observer.on(event)
+            _forward.dispose()
+        }
     }
 }
